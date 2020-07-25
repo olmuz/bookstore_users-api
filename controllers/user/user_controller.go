@@ -11,7 +11,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func CreateUser(c *gin.Context) {
+func getUserID(userIDparam string) (int64, *errors.RestErr) {
+	userID, err := strconv.ParseInt(userIDparam, 10, 64)
+	if err != nil {
+		err := errors.NewBadRequestError("user_id has to be a type of number")
+		return 0, err
+	}
+	return userID, nil
+}
+
+func Create(c *gin.Context) {
 	var user users.User
 	if err := c.ShouldBindJSON(&user); err != nil {
 		restErr := errors.NewBadRequestError("invalid json body")
@@ -27,17 +36,56 @@ func CreateUser(c *gin.Context) {
 	c.JSON(http.StatusCreated, result)
 }
 
-func GetUser(c *gin.Context) {
-	userID, userErr := strconv.ParseInt(c.Param("user_id"), 10, 64)
-	if userErr != nil {
-		err := errors.NewBadRequestError("user_id has to be a type of number")
-		c.JSON(err.Status, err)
+func Get(c *gin.Context) {
+	userID, idErr := getUserID(c.Param("user_id"))
+	if idErr != nil {
+		c.JSON(idErr.Status, idErr)
 		return
 	}
+
 	user, getErr := services.GetUser(userID)
 	if getErr != nil {
 		c.JSON(getErr.Status, getErr)
 		return
 	}
 	c.JSON(http.StatusOK, user)
+}
+
+func Update(c *gin.Context) {
+	userID, idErr := getUserID(c.Param("user_id"))
+	if idErr != nil {
+		c.JSON(idErr.Status, idErr)
+		return
+	}
+
+	var user users.User
+	if err := c.ShouldBindJSON(&user); err != nil {
+		restErr := errors.NewBadRequestError("invalid json body")
+		c.JSON(restErr.Status, &restErr)
+		return
+	}
+
+	user.ID = userID
+
+	partial := c.Request.Method == http.MethodPatch
+	updatedUser, updateErr := services.UpdateUser(partial, user)
+	if updateErr != nil {
+		c.JSON(updateErr.Status, updateErr)
+	}
+	c.JSON(http.StatusOK, updatedUser)
+	return
+}
+
+func Delete(c *gin.Context) {
+	userID, idErr := getUserID(c.Param("user_id"))
+	if idErr != nil {
+		c.JSON(idErr.Status, idErr)
+		return
+	}
+	if deleteErr := services.DeleteUser(userID); deleteErr != nil {
+		c.JSON(deleteErr.Status, deleteErr)
+		return
+	}
+	c.JSON(http.StatusOK, map[string]string{"status": "deleted"})
+	return
 }
