@@ -7,7 +7,21 @@ import (
 	"github.com/olmuz/bookstore_users-api/utils/errors"
 )
 
-func GetUser(userId int64) (*users.User, *errors.RestErr) {
+var (
+	UsersService UserServiceInterface = &usersService{}
+)
+
+type usersService struct{}
+
+type UserServiceInterface interface {
+	GetUser(int64) (*users.User, *errors.RestErr)
+	CreateUser(users.User) (*users.User, *errors.RestErr)
+	UpdateUser(bool, users.User) (*users.User, *errors.RestErr)
+	DeleteUser(int64) *errors.RestErr
+	SearchUser(string) (users.Users, *errors.RestErr)
+}
+
+func (s *usersService) GetUser(userId int64) (*users.User, *errors.RestErr) {
 	if userId <= 0 {
 		return nil, errors.NewBadRequestError("user_id has to be positive number")
 	}
@@ -18,7 +32,7 @@ func GetUser(userId int64) (*users.User, *errors.RestErr) {
 	return user, nil
 }
 
-func CreateUser(user users.User) (*users.User, *errors.RestErr) {
+func (s *usersService) CreateUser(user users.User) (*users.User, *errors.RestErr) {
 	if err := user.Validate(); err != nil {
 		return nil, err
 	}
@@ -32,8 +46,8 @@ func CreateUser(user users.User) (*users.User, *errors.RestErr) {
 	return &user, nil
 }
 
-func UpdateUser(partial bool, user users.User) (*users.User, *errors.RestErr) {
-	current, err := GetUser(user.ID)
+func (s *usersService) UpdateUser(partial bool, user users.User) (*users.User, *errors.RestErr) {
+	current, err := s.GetUser(user.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -60,12 +74,12 @@ func UpdateUser(partial bool, user users.User) (*users.User, *errors.RestErr) {
 	return current, nil
 }
 
-func DeleteUser(userID int64) *errors.RestErr {
+func (s *usersService) DeleteUser(userID int64) *errors.RestErr {
 	user := &users.User{ID: userID}
 	return user.Delete()
 }
 
-func SearchUser(status string) (users.Users, *errors.RestErr) {
+func (s *usersService) SearchUser(status string) (users.Users, *errors.RestErr) {
 	user := &users.User{Status: status}
 	return user.FindByStatus()
 }
